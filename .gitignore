@@ -1,0 +1,11 @@
+# Graphify output
+graphify-out/
+
+# IDE
+.vscode/sftp.json
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
