@@ -57,6 +57,12 @@ GET api.php?mirror=Canada&release=bookworm&arch=amd64&https=yes
     └── generator.php    # SourcesListGenerator class
 ```
 
+## Screenshot
+
+![Debian Sources Generator Interface](screenshot_2026-07-13%2017-59-39.png)
+
+*The web interface showing all generation options configured*
+
 ## License
 
 MIT
