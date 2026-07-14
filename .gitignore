@@ -2,7 +2,7 @@
 graphify-out/
 
 # IDE
-.vscode/sftp.json
+.vscode/
 
 # OS
 .DS_Store
