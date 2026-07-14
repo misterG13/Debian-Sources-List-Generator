@@ -31,7 +31,20 @@ Send a GET or POST request to `api.php`:
 GET api.php?mirror=Canada&release=bookworm&arch=amd64&https=yes
 ```
 
-**GET/POST Parameters:**
+CURL request via the linux CLI to `api.php`:
+
+```bash
+# Basic request
+curl -s "http://your-server/api.php?mirror=Germany&release=bookworm"
+
+# With HTTPS and write to sources.list
+curl -s "http://your-server/api.php?mirror=United+States&release=bookworm&https=1" | sudo tee /etc/apt/sources.list
+
+# With source repos and HTTPS
+curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&src=1&https=1"
+```
+
+**API Parameters:**
 
 | Parameter | Description |
 |-----------|-------------|
@@ -45,19 +58,6 @@ GET api.php?mirror=Canada&release=bookworm&arch=amd64&https=yes
 | `non-free-firmware` | Include non-free-firmware (`yes`/`no`) |
 | `security` | Include security repos (`yes`/`no`) |
 | `signed-by` | GPG key path for signed-by |
-
-CURL request via the linux CLI to `api.php`:
-
-```bash
-# Basic request
-curl -s "http://your-server/api.php?mirror=Germany&release=bookworm"
-
-# With HTTPS and write to sources.list
-curl -s "http://your-server/api.php?mirror=United+States&release=bookworm&https=1" | sudo tee /etc/apt/sources.list
-
-# With source repos and HTTPS
-curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&src=1&https=1"
-```
 
 ## Project Structure
 
