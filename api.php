@@ -59,7 +59,7 @@ function sendError(string $message): never
 $mirror          = getCdnMirror()->url();
 $release         = Release::Stable;
 $arch            = '';
-$includeSource   = false;
+$includeSources  = false;
 $contrib         = true;
 $nonFree         = true;
 $nonFreeFirmware = true;
@@ -105,7 +105,7 @@ $arch          = (string) param('arch', $arch);
 if (strlen($arch) > 20) {
   sendError("Arch value too long (max 20 characters)");
 }
-$includeSource = param('src', '0') === '1';
+$includeSources = param('src', '0') === '1';
 $contrib       = param('contrib', '1') !== '0';
 $nonFree       = param('non-free', '1') !== '0';
 $nonFreeFirmware = param('non-free-firmware', '1') !== '0';
@@ -124,7 +124,7 @@ try {
     mirror: $mirror,
     release: $release,
     arch: $arch,
-    includeSource: $includeSource,
+    includeSources: $includeSources,
     contrib: $contrib,
     nonFree: $nonFree,
     nonFreeFirmware: $nonFreeFirmware,
