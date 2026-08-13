@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       mirror: $mirrorUrl,
       release: $release,
       arch: $arch,
-      includeSource: $src,
+      includeSources: $src,
       contrib: $contrib,
       nonFree: $nonFree,
       nonFreeFirmware: $nonFreeFirmware,
@@ -103,7 +103,7 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-  <title>Source List Generator for Debian</title>
+  <title>Sources List Generator for Debian</title>
   <meta name="description" content="Sources List Generator for official Debian repositories" />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -112,7 +112,7 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
   <main>
     <div class="wrap--header">
       <div class="wrap">
-        <h2 class="header">Debian Source List Generator</h2>
+        <h2 class="header">Debian Sources List Generator</h2>
       </div>
     </div>
     <div class="wrap">
@@ -174,7 +174,7 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
 
           <div class="section-group">
             <div class="checkbox-grid">
-              <label><input name="src" type="checkbox" <?= $src ? 'checked' : '' ?> tabindex="5" /> Include source</label>
+              <label><input name="src" type="checkbox" <?= $src ? 'checked' : '' ?> tabindex="5" /> Include sources</label>
               <label><input name="contrib" type="checkbox" <?= $contrib ? 'checked' : '' ?> tabindex="6" /> Contrib</label>
               <label><input name="non-free" type="checkbox" <?= $nonFree ? 'checked' : '' ?> tabindex="7" /> Non-Free</label>
               <label id="nonFreeFirmwareLabel" <?= $release->hasNonFreeFirmware() ? '' : 'style="display:none"' ?>><input name="non-free-firmware" type="checkbox" <?= $nonFreeFirmware ? 'checked' : '' ?> tabindex="8" /> Non-Free Firmware</label>
@@ -197,8 +197,8 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
 
           <div class="section-group">
             <p>
-              <label>Source List <code>/etc/apt/sources.list</code><br />
-                <div class="code-block" role="region" aria-label="Source List output"><?= htmlspecialchars($output) ?></div>
+              <label>Sources List <code>/etc/apt/sources.list</code><br />
+                <div class="code-block" role="region" aria-label="Sources List output"><?= htmlspecialchars($output) ?></div>
               </label>
             </p>
 

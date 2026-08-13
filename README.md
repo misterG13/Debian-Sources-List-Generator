@@ -1,4 +1,4 @@
-# Debian Source List Generator
+# Debian Sources List Generator
 
 A self-contained PHP web application that generates `/etc/apt/sources.list` files for official Debian repositories. Includes both a web UI and a REST API.
 
@@ -46,18 +46,18 @@ curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&src=1&https=
 
 **API Parameters:**
 
-| Parameter | Description |
-|-----------|-------------|
-| `mirror` | Country name or full mirror URL |
-| `release` | Debian release (e.g. `bookworm`, `trixie`, `testing`) |
-| `arch` | Architecture (e.g. `amd64`, `arm64`) |
-| `src` | Include deb-src lines (`yes`/`no`) |
-| `https` | Use HTTPS (`yes`/`no`) |
-| `contrib` | Include contrib (`yes`/`no`) |
-| `non-free` | Include non-free (`yes`/`no`) |
-| `non-free-firmware` | Include non-free-firmware (`yes`/`no`) |
-| `security` | Include security repos (`yes`/`no`) |
-| `signed-by` | GPG key path for signed-by |
+| Parameter           | Description                                           |
+| ------------------- | ----------------------------------------------------- |
+| `mirror`            | Country name or full mirror URL                       |
+| `release`           | Debian release (e.g. `bookworm`, `trixie`, `testing`) |
+| `arch`              | Architecture (e.g. `amd64`, `arm64`)                  |
+| `src`               | Include deb-src lines (`yes`/`no`)                    |
+| `https`             | Use HTTPS (`yes`/`no`)                                |
+| `contrib`           | Include contrib (`yes`/`no`)                          |
+| `non-free`          | Include non-free (`yes`/`no`)                         |
+| `non-free-firmware` | Include non-free-firmware (`yes`/`no`)                |
+| `security`          | Include security repos (`yes`/`no`)                   |
+| `signed-by`         | GPG key path for signed-by                            |
 
 ## Project Structure
 
@@ -74,7 +74,7 @@ curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&src=1&https=
 
 ![Debian Sources Generator Interface](screenshot_2026-07-13%2017-59-39.png)
 
-*The web interface showing all generation options configured*
+_The web interface showing all generation options configured_
 
 ## License
 
