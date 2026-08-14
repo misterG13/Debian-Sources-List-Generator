@@ -64,6 +64,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   $selectedCountryMirrors = getMirrorsForCountry($countryCode, $countries);
 
+  // A specific country was chosen: its mirror list must contain the posted mirror,
+  // otherwise fall back to the country's first mirror so one Generate click is enough.
+  if ($countryCode !== '' && $selectedCountryMirrors !== []) {
+    $mirrorUrls = array_map(static fn (Mirror $m): string => $m->url(), $selectedCountryMirrors);
+    if (!in_array($mirrorUrl, $mirrorUrls, true)) {
+      $mirrorUrl = $selectedCountryMirrors[0]->url();
+    }
+  }
+
   $generator = new SourcesListGenerator();
   $output    = $generator->generate(
     mirror: $mirrorUrl,
