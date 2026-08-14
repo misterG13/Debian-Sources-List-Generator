@@ -16,7 +16,6 @@ $csrfToken = $_SESSION['csrf_token'];
 $countries = getCountries();
 
 // --- Form state (defaults) ---
-$step            = 1;
 $countryCode     = '';
 $mirrorUrl       = getCdnMirror()->url();
 $release         = Release::Stable;
@@ -38,63 +37,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit('Invalid CSRF token.');
   }
 
-  $step        = (int) ($_POST['step'] ?? 1);
   $countryCode = (string) ($_POST['country'] ?? '');
 
-  // Step 1 → advance to step 2, populate mirrors for selected country
-  if ($step === 1) {
-    $step = 2;
+  $mirrorUrl       = (string) ($_POST['mirror'] ?? $mirrorUrl);
+  $arch            = (string) ($_POST['arch'] ?? $arch);
+  $src             = isset($_POST['src']);
+  $contrib         = isset($_POST['contrib']);
+  $nonFree         = isset($_POST['non-free']);
+  $nonFreeFirmware = isset($_POST['non-free-firmware']);
+  $security        = isset($_POST['security']);
+  $useHttps        = isset($_POST['https']);
+  $signedBy        = (string) ($_POST['signed-by'] ?? '');
+
+  $releaseRaw = $_POST['releases'] ?? $release->value;
+  $release    = Release::tryFrom($releaseRaw) ?? Release::Stable;
+
+  // Validate mirror URL
+  if (findMirrorByUrl($mirrorUrl) === null) {
+    $mirrorUrl = getCdnMirror()->url();
   }
 
-  // Step 2 → read form values, generate sources.list
-  if ($step === 2) {
-    $mirrorUrl       = (string) ($_POST['mirror'] ?? $mirrorUrl);
-    $arch            = (string) ($_POST['arch'] ?? $arch);
-    $src             = isset($_POST['src']);
-    $contrib         = isset($_POST['contrib']);
-    $nonFree         = isset($_POST['non-free']);
-    $nonFreeFirmware = isset($_POST['non-free-firmware']);
-    $security        = isset($_POST['security']);
-    $useHttps        = isset($_POST['https']);
-    $signedBy        = (string) ($_POST['signed-by'] ?? '');
-
-    $releaseRaw = $_POST['releases'] ?? $release->value;
-    $release    = Release::tryFrom($releaseRaw) ?? Release::Stable;
-
-    // Validate mirror URL
-    if (findMirrorByUrl($mirrorUrl) === null) {
-      $mirrorUrl = getCdnMirror()->url();
-    }
-
-    // If no country selected, try to infer from mirror URL
-    if ($countryCode === '' && $mirrorUrl !== getCdnMirror()->url()) {
-      $countryCode = findCountryByMirror($mirrorUrl, $countries) ?? '';
-    }
-
-    $selectedCountryMirrors = getMirrorsForCountry($countryCode, $countries);
-
-    $generator = new SourcesListGenerator();
-    $output    = $generator->generate(
-      mirror: $mirrorUrl,
-      release: $release,
-      arch: $arch,
-      includeSources: $src,
-      contrib: $contrib,
-      nonFree: $nonFree,
-      nonFreeFirmware: $nonFreeFirmware,
-      security: $security,
-      signedBy: $signedBy !== '' ? $signedBy : null,
-    );
-
-    if ($useHttps) {
-      $output = str_replace('http://', 'https://', $output);
-    }
-
-    $hasOutput = true;
+  // If no country selected, try to infer from mirror URL
+  if ($countryCode === '' && $mirrorUrl !== getCdnMirror()->url()) {
+    $countryCode = findCountryByMirror($mirrorUrl, $countries) ?? '';
   }
+
+  $selectedCountryMirrors = getMirrorsForCountry($countryCode, $countries);
+
+  $generator = new SourcesListGenerator();
+  $output    = $generator->generate(
+    mirror: $mirrorUrl,
+    release: $release,
+    arch: $arch,
+    includeSources: $src,
+    contrib: $contrib,
+    nonFree: $nonFree,
+    nonFreeFirmware: $nonFreeFirmware,
+    security: $security,
+    signedBy: $signedBy !== '' ? $signedBy : null,
+  );
+
+  if ($useHttps) {
+    $output = str_replace('http://', 'https://', $output);
+  }
+
+  $hasOutput = true;
 }
 
-// --- Mirrors for template (step 1 GET: CDN default) ---
+// --- Mirrors for template (GET default: CDN mirror) ---
 $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($countryCode, $countries);
 ?>
 <!doctype html>
@@ -118,7 +108,6 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
     <div class="wrap">
       <form method="POST" action="">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>" />
-        <input type="hidden" name="step" id="stepField" value="<?= $step ?>" />
 
         <!-- ── Country Select (always visible) ─────────────────────── -->
         <div class="elemnts--inline">
@@ -132,26 +121,19 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
               </select></label>
           </p>
 
-          <!-- ── Mirror Select (step 2 only) ──────────────────────── -->
-          <?php if ($step === 2) : ?>
-            <p>
-              <label>Mirror<br />
-                <select name="mirror" tabindex="2">
-                  <?php foreach ($selectedCountryMirrors as $m) : ?>
-                    <option value="<?= htmlspecialchars($m->url()) ?>" <?= $mirrorUrl === $m->url() ? 'selected' : '' ?>><?= htmlspecialchars($m->label()) ?></option>
-                  <?php endforeach; ?>
-                </select></label>
-            </p>
-          <?php endif; ?>
-
-          <!-- ── Step 1: Next button ──────────────────────────────── -->
-          <?php if ($step === 1) : ?>
-            <p><button type="submit" class="button" tabindex="2">Next &rarr;</button></p>
-          <?php endif; ?>
+          <!-- ── Mirror Select ────────────────────────────────────── -->
+          <p>
+            <label>Mirror<br />
+              <select name="mirror" tabindex="2">
+                <?php foreach ($selectedCountryMirrors as $m) : ?>
+                  <option value="<?= htmlspecialchars($m->url()) ?>" <?= $mirrorUrl === $m->url() ? 'selected' : '' ?>><?= htmlspecialchars($m->label()) ?></option>
+                <?php endforeach; ?>
+              </select></label>
+          </p>
         </div>
 
-        <!-- ── Step 2 fields ──────────────────────────────────────── -->
-        <div id="step2Fields" class="<?= $step === 2 ? '' : 'hidden' ?>">
+        <!-- ── Generation fields ──────────────────────────────────── -->
+        <div id="generationFields">
           <div class="elemnts--inline">
             <p>
               <label>Releases<br />
@@ -191,7 +173,7 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
           </div>
 
           <div class="actions">
-            <button type="submit" class="button" tabindex="12">Update</button>
+            <button type="submit" class="button" tabindex="12">Generate</button>
             <button type="button" class="button button--reset" onclick="window.location.href='?'" tabindex="13">Reset</button>
           </div>
 
