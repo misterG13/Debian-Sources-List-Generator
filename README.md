@@ -78,4 +78,4 @@ _The web interface showing all generation options configured_
 
 ## License
 
-MIT
+Mozilla Public License 2.0 — see [LICENSE](LICENSE).

@@ -1,5 +1,7 @@
 <?php
 
+// SPDX-License-Identifier: MPL-2.0
+
 /**
  * Debian sources.list API endpoint
  *
