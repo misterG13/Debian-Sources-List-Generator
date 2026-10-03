@@ -130,6 +130,25 @@ button {
   border-bottom-color: #666;
 }
 
+.elemnts--inline > p {
+  vertical-align: top;
+}
+
+.button--update {
+  margin-top: .25rem;
+  padding: .35rem .8rem;
+  font-size: 85%;
+  border-bottom-width: 3px;
+}
+
+.input--wide {
+  width: 100%;
+  max-width: 30rem;
+  padding: .4rem;
+  font-family: inherit;
+  font-size: inherit;
+}
+
 .hidden {
   display: none;
 }

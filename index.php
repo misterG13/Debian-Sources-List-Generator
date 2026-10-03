@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit('Invalid CSRF token.');
   }
 
+  $action      = ($_POST['action'] ?? 'generate') === 'update' ? 'update' : 'generate';
   $countryCode = (string) ($_POST['country'] ?? '');
 
   $mirrorUrl       = (string) ($_POST['mirror'] ?? $mirrorUrl);
@@ -75,24 +76,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
-  $generator = new SourcesListGenerator();
-  $output    = $generator->generate(
-    mirror: $mirrorUrl,
-    release: $release,
-    arch: $arch,
-    includeSources: $src,
-    contrib: $contrib,
-    nonFree: $nonFree,
-    nonFreeFirmware: $nonFreeFirmware,
-    security: $security,
-    signedBy: $signedBy !== '' ? $signedBy : null,
-  );
+  // 'update' only refreshes the country/mirror dropdowns; 'generate' also builds the sources list.
+  if ($action === 'generate') {
+    $generator = new SourcesListGenerator();
+    $output    = $generator->generate(
+      mirror: $mirrorUrl,
+      release: $release,
+      arch: $arch,
+      includeSources: $src,
+      contrib: $contrib,
+      nonFree: $nonFree,
+      nonFreeFirmware: $nonFreeFirmware,
+      security: $security,
+      signedBy: $signedBy !== '' ? $signedBy : null,
+    );
 
-  if ($useHttps) {
-    $output = str_replace('http://', 'https://', $output);
+    if ($useHttps) {
+      $output = str_replace('http://', 'https://', $output);
+    }
+
+    $hasOutput = true;
   }
-
-  $hasOutput = true;
 }
 
 // --- Mirrors for template (GET default: CDN mirror) ---
@@ -124,7 +128,7 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
         <div class="elemnts--inline">
           <p>
             <label>Country<br />
-              <select name="country" id="countrySelect" tabindex="1" autofocus>
+              <select name="country" tabindex="1" autofocus>
                 <option value="" <?= $countryCode === '' ? 'selected' : '' ?>>Global (CDN - deb.debian.org)</option>
                 <?php foreach ($countries as $c) : ?>
                   <option value="<?= htmlspecialchars($c->code) ?>" <?= $countryCode === $c->code ? 'selected' : '' ?>><?= htmlspecialchars($c->name) ?></option>
@@ -143,12 +147,17 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
           </p>
         </div>
 
+        <!-- ── Refresh mirrors for the selected country ────────────── -->
+        <div class="actions">
+          <button type="submit" name="action" value="update" class="button button--update" tabindex="3">Update mirrors</button>
+        </div>
+
         <!-- ── Generation fields ──────────────────────────────────── -->
         <div id="generationFields">
           <div class="elemnts--inline">
             <p>
               <label>Releases<br />
-                <select name="releases" id="releasesSelect" tabindex="3">
+                <select name="releases" tabindex="4">
                   <?php foreach (Release::cases() as $r) : ?>
                     <option value="<?= $r->value ?>" <?= $release === $r ? 'selected' : '' ?>><?= $r->label() ?></option>
                   <?php endforeach; ?>
@@ -157,7 +166,7 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
 
             <p>
               <label>Arch<br />
-                <select name="arch" tabindex="4">
+                <select name="arch" tabindex="5">
                   <?php foreach (ARCHITECTURES as $a) : ?>
                     <option value="<?= htmlspecialchars($a) ?>" <?= $arch === $a ? 'selected' : '' ?>><?= htmlspecialchars($a) ?></option>
                   <?php endforeach; ?>
@@ -167,25 +176,25 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
 
           <div class="section-group">
             <div class="checkbox-grid">
-              <label><input name="src" type="checkbox" <?= $src ? 'checked' : '' ?> tabindex="5" /> Include sources</label>
-              <label><input name="contrib" type="checkbox" <?= $contrib ? 'checked' : '' ?> tabindex="6" /> Contrib</label>
-              <label><input name="non-free" type="checkbox" <?= $nonFree ? 'checked' : '' ?> tabindex="7" /> Non-Free</label>
-              <label id="nonFreeFirmwareLabel" <?= $release->hasNonFreeFirmware() ? '' : 'style="display:none"' ?>><input name="non-free-firmware" type="checkbox" <?= $nonFreeFirmware ? 'checked' : '' ?> tabindex="8" /> Non-Free Firmware</label>
-              <label><input name="security" type="checkbox" <?= $security ? 'checked' : '' ?> tabindex="9" /> Security</label>
-              <label><input name="https" type="checkbox" <?= $useHttps ? 'checked' : '' ?> tabindex="10" /> HTTPS</label>
+              <label><input name="src" type="checkbox" <?= $src ? 'checked' : '' ?> tabindex="6" /> Include sources</label>
+              <label><input name="contrib" type="checkbox" <?= $contrib ? 'checked' : '' ?> tabindex="7" /> Contrib</label>
+              <label><input name="non-free" type="checkbox" <?= $nonFree ? 'checked' : '' ?> tabindex="8" /> Non-Free</label>
+              <label<?= $release->hasNonFreeFirmware() ? '' : ' class="hidden"' ?>><input name="non-free-firmware" type="checkbox" <?= $nonFreeFirmware ? 'checked' : '' ?> tabindex="9" /> Non-Free Firmware</label>
+              <label><input name="security" type="checkbox" <?= $security ? 'checked' : '' ?> tabindex="10" /> Security</label>
+              <label><input name="https" type="checkbox" <?= $useHttps ? 'checked' : '' ?> tabindex="11" /> HTTPS</label>
             </div>
           </div>
 
           <div class="section-group">
             <p>
               <label>Signed-By (optional)<br />
-                <input type="text" name="signed-by" id="signedByInput" placeholder="/usr/share/keyrings/debian-archive-keyring.gpg" value="<?= htmlspecialchars($signedBy) ?>" tabindex="11" style="width:100%;max-width:30rem;padding:.4rem;font-family:inherit;font-size:inherit" /></label>
+                <input type="text" name="signed-by" class="input--wide" placeholder="/usr/share/keyrings/debian-archive-keyring.gpg" value="<?= htmlspecialchars($signedBy) ?>" tabindex="12" /></label>
             </p>
           </div>
 
           <div class="actions">
-            <button type="submit" class="button" tabindex="12">Generate</button>
-            <button type="button" class="button button--reset" onclick="window.location.href='?'" tabindex="13">Reset</button>
+            <button type="submit" name="action" value="generate" class="button" tabindex="13">Generate</button>
+            <button type="button" class="button button--reset" onclick="window.location.href='?'" tabindex="14">Reset</button>
           </div>
 
           <div class="section-group">
