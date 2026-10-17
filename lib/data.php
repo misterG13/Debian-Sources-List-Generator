@@ -52,6 +52,22 @@ enum Release: string
   }
 }
 
+// ─── Source Format Enum ──────────────────────────────────────────────────────
+
+enum SourceFormat: string
+{
+  case OneLine = 'oneline';
+  case Deb822  = 'deb822';
+
+  public function label(): string
+  {
+    return match ($this) {
+      self::OneLine => 'one-line (.list)',
+      self::Deb822  => 'deb822 (.sources)',
+    };
+  }
+}
+
 // ─── Mirror Class ────────────────────────────────────────────────────────────
 
 final readonly class Mirror

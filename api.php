@@ -19,11 +19,13 @@
  *   non-free-firmware  Set to 0 to exclude non-free-firmware
  *   security           Set to 0 to exclude security repo
  *   signed-by          Path to signing key
+ *   format             Output format: oneline (default) or deb822
  *
  * Examples:
  *   curl -s "http://your-server/api.php?mirror=Germany&release=bookworm"
  *   curl -s "http://your-server/api.php?mirror=United+States&release=bookworm&https=1" | sudo tee /etc/apt/sources.list
  *   curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&src=1&https=1"
+ *   curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&format=deb822"
  */
 
 declare(strict_types=1);
@@ -67,6 +69,7 @@ $nonFree         = true;
 $nonFreeFirmware = true;
 $security        = true;
 $signedBy        = null;
+$format          = SourceFormat::OneLine;
 
 // --- Read params (GET or POST) ---
 function param(string $key, mixed $default): mixed
@@ -119,6 +122,12 @@ if (strlen($signedByRaw) > 200) {
 $signedBy      = $signedByRaw !== '' ? $signedByRaw : null;
 $useHttps       = param('https', '0') === '1';
 
+$formatRaw = (string) param('format', $format->value);
+$format    = SourceFormat::tryFrom($formatRaw);
+if ($format === null) {
+  sendError("Invalid format: {$formatRaw} (expected oneline or deb822)");
+}
+
 // --- Generate ---
 try {
   $generator = new SourcesListGenerator();
@@ -132,6 +141,7 @@ try {
     nonFreeFirmware: $nonFreeFirmware,
     security: $security,
     signedBy: $signedBy,
+    format: $format,
   );
 } catch (\Throwable $e) {
   sendError("Generation failed: {$e->getMessage()}");

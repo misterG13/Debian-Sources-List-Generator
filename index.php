@@ -28,6 +28,7 @@ $nonFree         = true;
 $nonFreeFirmware = true;
 $security        = true;
 $useHttps        = false;
+$format          = SourceFormat::OneLine;
 $signedBy        = '';
 $output          = '';
 $hasOutput       = false;
@@ -50,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $nonFreeFirmware = isset($_POST['non-free-firmware']);
   $security        = isset($_POST['security']);
   $useHttps        = isset($_POST['https']);
+  $format          = SourceFormat::tryFrom((string) ($_POST['format'] ?? '')) ?? SourceFormat::OneLine;
   $signedBy        = (string) ($_POST['signed-by'] ?? '');
 
   $releaseRaw = $_POST['releases'] ?? $release->value;
@@ -89,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       nonFreeFirmware: $nonFreeFirmware,
       security: $security,
       signedBy: $signedBy !== '' ? $signedBy : null,
+      format: $format,
     );
 
     if ($useHttps) {
@@ -172,34 +175,43 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
                   <?php endforeach; ?>
                 </select></label>
             </p>
+
+            <p>
+              <label>Format<br />
+                <select name="format" tabindex="6">
+                  <?php foreach (SourceFormat::cases() as $f) : ?>
+                    <option value="<?= $f->value ?>" <?= $format === $f ? 'selected' : '' ?>><?= $f->label() ?></option>
+                  <?php endforeach; ?>
+                </select></label>
+            </p>
           </div>
 
           <div class="section-group">
             <div class="checkbox-grid">
-              <label><input name="src" type="checkbox" <?= $src ? 'checked' : '' ?> tabindex="6" /> Include sources</label>
-              <label><input name="contrib" type="checkbox" <?= $contrib ? 'checked' : '' ?> tabindex="7" /> Contrib</label>
-              <label><input name="non-free" type="checkbox" <?= $nonFree ? 'checked' : '' ?> tabindex="8" /> Non-Free</label>
-              <label<?= $release->hasNonFreeFirmware() ? '' : ' class="hidden"' ?>><input name="non-free-firmware" type="checkbox" <?= $nonFreeFirmware ? 'checked' : '' ?> tabindex="9" /> Non-Free Firmware</label>
-              <label><input name="security" type="checkbox" <?= $security ? 'checked' : '' ?> tabindex="10" /> Security</label>
-              <label><input name="https" type="checkbox" <?= $useHttps ? 'checked' : '' ?> tabindex="11" /> HTTPS</label>
+              <label><input name="src" type="checkbox" <?= $src ? 'checked' : '' ?> tabindex="7" /> Include sources</label>
+              <label><input name="contrib" type="checkbox" <?= $contrib ? 'checked' : '' ?> tabindex="8" /> Contrib</label>
+              <label><input name="non-free" type="checkbox" <?= $nonFree ? 'checked' : '' ?> tabindex="9" /> Non-Free</label>
+              <label<?= $release->hasNonFreeFirmware() ? '' : ' class="hidden"' ?>><input name="non-free-firmware" type="checkbox" <?= $nonFreeFirmware ? 'checked' : '' ?> tabindex="10" /> Non-Free Firmware</label>
+              <label><input name="security" type="checkbox" <?= $security ? 'checked' : '' ?> tabindex="11" /> Security</label>
+              <label><input name="https" type="checkbox" <?= $useHttps ? 'checked' : '' ?> tabindex="12" /> HTTPS</label>
             </div>
           </div>
 
           <div class="section-group">
             <p>
               <label>Signed-By (optional)<br />
-                <input type="text" name="signed-by" class="input--wide" placeholder="/usr/share/keyrings/debian-archive-keyring.gpg" value="<?= htmlspecialchars($signedBy) ?>" tabindex="12" /></label>
+                <input type="text" name="signed-by" class="input--wide" placeholder="/usr/share/keyrings/debian-archive-keyring.gpg" value="<?= htmlspecialchars($signedBy) ?>" tabindex="13" /></label>
             </p>
           </div>
 
           <div class="actions">
-            <button type="submit" name="action" value="generate" class="button" tabindex="13">Generate</button>
-            <button type="button" class="button button--reset" onclick="window.location.href='?'" tabindex="14">Reset</button>
+            <button type="submit" name="action" value="generate" class="button" tabindex="14">Generate</button>
+            <button type="button" class="button button--reset" onclick="window.location.href='?'" tabindex="15">Reset</button>
           </div>
 
           <div class="section-group">
             <p>
-              <label>Sources List <code>/etc/apt/sources.list</code><br />
+              <label>Sources List <code><?= $format === SourceFormat::Deb822 ? '/etc/apt/sources.list.d/debian.sources' : '/etc/apt/sources.list' ?></code><br />
                 <div class="code-block" role="region" aria-label="Sources List output"><?= htmlspecialchars($output) ?></div>
               </label>
             </p>
@@ -207,7 +219,9 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
             <?php if ($hasOutput) : ?>
               <p>
                 <label>CLI Command<br />
-                  <div class="code-block" role="region" aria-label="CLI Command output"><?= htmlspecialchars("sudo tee /etc/apt/sources.list.d/debian-{$release->value}-sources.list <<EOF\n# Debian {$release->label()} sources.list\n" . $output . "\nEOF\n\nsudo apt update") ?></div>
+                  <div class="code-block" role="region" aria-label="CLI Command output"><?= htmlspecialchars($format === SourceFormat::Deb822
+                    ? "sudo tee /etc/apt/sources.list.d/debian.sources <<EOF\n# Debian {$release->label()} debian.sources\n" . $output . "\nEOF\n\nsudo apt update"
+                    : "sudo tee /etc/apt/sources.list.d/debian-{$release->value}-sources.list <<EOF\n# Debian {$release->label()} sources.list\n" . $output . "\nEOF\n\nsudo apt update") ?></div>
                 </label>
               </p>
             <?php endif; ?>

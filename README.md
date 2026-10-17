@@ -8,6 +8,7 @@ A self-contained PHP web application that generates `/etc/apt/sources.list` file
 - Choose any Debian release (Squeeze through Testing)
 - Support for 20+ architectures (amd64, arm64, i386, riscv64, etc.)
 - Configurable options: source repos, contrib, non-free, non-free-firmware, security, HTTPS, signed-by
+- Choice of output format: classic one-line (`.list`) or modern deb822 (`.sources`)
 - Generates ready-to-copy CLI commands
 - CSRF-protected web form
 - REST API for programmatic access
@@ -42,6 +43,9 @@ curl -s "http://your-server/api.php?mirror=United+States&release=bookworm&https=
 
 # With source repos and HTTPS
 curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&src=1&https=1"
+
+# deb822 (.sources) format
+curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&format=deb822"
 ```
 
 **API Parameters:**
@@ -58,6 +62,7 @@ curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&src=1&https=
 | `non-free-firmware` | Include non-free-firmware (`yes`/`no`)                |
 | `security`          | Include security repos (`yes`/`no`)                   |
 | `signed-by`         | GPG key path for signed-by                            |
+| `format`            | Output format: `oneline` (default) or `deb822`         |
 
 ## Project Structure
 

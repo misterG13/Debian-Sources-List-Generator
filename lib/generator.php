@@ -20,10 +20,16 @@ final readonly class SourcesListGenerator
     bool $nonFreeFirmware,
     bool $security,
     ?string $signedBy = null,
+    SourceFormat $format = SourceFormat::OneLine,
   ): string {
+    $components = $this->buildComponents($contrib, $nonFree, $nonFreeFirmware);
+
+    if ($format === SourceFormat::Deb822) {
+      return $this->generateDeb822($mirror, $release, $arch, $includeSources, $components, $security, $signedBy);
+    }
+
     $lines = [];
     $archQual = $this->buildArchQualifier($arch, $signedBy);
-    $components = $this->buildComponents($contrib, $nonFree, $nonFreeFirmware);
 
     $this->appendSources($lines, 'deb', $archQual, $mirror, $release->value, $components);
     if ($includeSources) {
@@ -44,6 +50,60 @@ final readonly class SourcesListGenerator
       if ($includeSources) {
         $this->appendSources($lines, 'deb-src', $archQual, self::SECURITY_URL, $release->value . '-security', $components);
       }
+    }
+
+    return implode("\n", $lines);
+  }
+
+  private function generateDeb822(
+    string $mirror,
+    Release $release,
+    string $arch,
+    bool $includeSources,
+    string $components,
+    bool $security,
+    ?string $signedBy,
+  ): string {
+    $types = $includeSources ? 'deb deb-src' : 'deb';
+
+    $suites = [$release->value];
+    if ($release->hasUpdates()) {
+      $suites[] = $release->value . '-updates';
+    }
+
+    $stanzas = [$this->buildStanza($types, $mirror, $suites, $components, $arch, $signedBy)];
+
+    if ($security) {
+      $stanzas[] = $this->buildStanza(
+        $types,
+        self::SECURITY_URL,
+        [$release->value . '-security'],
+        $components,
+        $arch,
+        $signedBy,
+      );
+    }
+
+    return implode("\n\n", $stanzas);
+  }
+
+  /**
+   * @param list<string> $suites
+   */
+  private function buildStanza(string $types, string $uri, array $suites, string $components, string $arch, ?string $signedBy): string
+  {
+    $lines = [
+      "Types: {$types}",
+      "URIs: {$uri}",
+      'Suites: ' . implode(' ', $suites),
+      "Components: {$components}",
+    ];
+
+    if ($arch !== '') {
+      $lines[] = "Architectures: {$arch}";
+    }
+    if ($signedBy !== null && $signedBy !== '') {
+      $lines[] = "Signed-By: {$signedBy}";
     }
 
     return implode("\n", $lines);
