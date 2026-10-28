@@ -8,7 +8,12 @@ require_once __DIR__ . '/data.php';
 
 final readonly class SourcesListGenerator
 {
-  private const SECURITY_URL = 'http://deb.debian.org/debian-security';
+  private const SECURITY_URL       = 'http://deb.debian.org/debian-security';
+  private const TOR_ARCHIVE_URL    = 'tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian';
+  private const TOR_SECURITY_URL   = 'tor+http://5ajw6aqf3ep7sijnscdzw77t7xq4xjpsy335yb2wiwgouo7yfxtjlmid.onion/debian-security';
+  private const TOR_COMMENT        = "# Tor source URLs require the tor and apt-transport-tor packages.\n"
+    . "# Install them before using these entries:\n"
+    . '#   sudo apt install tor apt-transport-tor';
 
   public function generate(
     string $mirror,
@@ -21,42 +26,48 @@ final readonly class SourcesListGenerator
     bool $security,
     ?string $signedBy = null,
     SourceFormat $format = SourceFormat::OneLine,
+    bool $tor = false,
   ): string {
-    $components = $this->buildComponents($contrib, $nonFree, $nonFreeFirmware);
+    $components  = $this->buildComponents($contrib, $nonFree, $nonFreeFirmware);
+    $archiveUrl  = $tor ? self::TOR_ARCHIVE_URL : $mirror;
+    $securityUrl = $tor ? self::TOR_SECURITY_URL : self::SECURITY_URL;
 
     if ($format === SourceFormat::Deb822) {
-      return $this->generateDeb822($mirror, $release, $arch, $includeSources, $components, $security, $signedBy);
-    }
+      $output = $this->generateDeb822($archiveUrl, $securityUrl, $release, $arch, $includeSources, $components, $security, $signedBy);
+    } else {
+      $lines = [];
+      $archQual = $this->buildArchQualifier($arch, $signedBy);
 
-    $lines = [];
-    $archQual = $this->buildArchQualifier($arch, $signedBy);
-
-    $this->appendSources($lines, 'deb', $archQual, $mirror, $release->value, $components);
-    if ($includeSources) {
-      $this->appendSources($lines, 'deb-src', $archQual, $mirror, $release->value, $components);
-    }
-
-    if ($release->hasUpdates()) {
-      $lines[] = '';
-      $this->appendSources($lines, 'deb', $archQual, $mirror, $release->value . '-updates', $components);
+      $this->appendSources($lines, 'deb', $archQual, $archiveUrl, $release->value, $components);
       if ($includeSources) {
-        $this->appendSources($lines, 'deb-src', $archQual, $mirror, $release->value . '-updates', $components);
+        $this->appendSources($lines, 'deb-src', $archQual, $archiveUrl, $release->value, $components);
       }
+
+      if ($release->hasUpdates()) {
+        $lines[] = '';
+        $this->appendSources($lines, 'deb', $archQual, $archiveUrl, $release->value . '-updates', $components);
+        if ($includeSources) {
+          $this->appendSources($lines, 'deb-src', $archQual, $archiveUrl, $release->value . '-updates', $components);
+        }
+      }
+
+      if ($security) {
+        $lines[] = '';
+        $this->appendSources($lines, 'deb', $archQual, $securityUrl, $release->value . '-security', $components);
+        if ($includeSources) {
+          $this->appendSources($lines, 'deb-src', $archQual, $securityUrl, $release->value . '-security', $components);
+        }
+      }
+
+      $output = implode("\n", $lines);
     }
 
-    if ($security) {
-      $lines[] = '';
-      $this->appendSources($lines, 'deb', $archQual, self::SECURITY_URL, $release->value . '-security', $components);
-      if ($includeSources) {
-        $this->appendSources($lines, 'deb-src', $archQual, self::SECURITY_URL, $release->value . '-security', $components);
-      }
-    }
-
-    return implode("\n", $lines);
+    return $tor ? self::TOR_COMMENT . "\n\n" . $output : $output;
   }
 
   private function generateDeb822(
     string $mirror,
+    string $securityUrl,
     Release $release,
     string $arch,
     bool $includeSources,
@@ -76,7 +87,7 @@ final readonly class SourcesListGenerator
     if ($security) {
       $stanzas[] = $this->buildStanza(
         $types,
-        self::SECURITY_URL,
+        $securityUrl,
         [$release->value . '-security'],
         $components,
         $arch,

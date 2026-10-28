@@ -14,6 +14,7 @@
  *   arch               Architecture: amd64, arm64, etc. (default: none)
  *   src                Set to 1 to include deb-src lines
  *   https              Set to 1 to use HTTPS instead of HTTP
+ *   tor                Set to 1 to use official Debian onion mirrors
  *   contrib            Set to 0 to exclude contrib
  *   non-free           Set to 0 to exclude non-free
  *   non-free-firmware  Set to 0 to exclude non-free-firmware
@@ -26,6 +27,7 @@
  *   curl -s "http://your-server/api.php?mirror=United+States&release=bookworm&https=1" | sudo tee /etc/apt/sources.list
  *   curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&src=1&https=1"
  *   curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&format=deb822"
+ *   curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&tor=1"
  */
 
 declare(strict_types=1);
@@ -121,6 +123,7 @@ if (strlen($signedByRaw) > 200) {
 }
 $signedBy      = $signedByRaw !== '' ? $signedByRaw : null;
 $useHttps       = param('https', '0') === '1';
+$tor            = param('tor', '0') === '1';
 
 $formatRaw = (string) param('format', $format->value);
 $format    = SourceFormat::tryFrom($formatRaw);
@@ -142,12 +145,13 @@ try {
     security: $security,
     signedBy: $signedBy,
     format: $format,
+    tor: $tor,
   );
 } catch (\Throwable $e) {
   sendError("Generation failed: {$e->getMessage()}");
 }
 
-if ($useHttps) {
+if ($useHttps && !$tor) {
   $output = str_replace('http://', 'https://', $output);
 }
 

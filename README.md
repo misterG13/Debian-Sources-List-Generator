@@ -9,6 +9,7 @@ A self-contained PHP web application that generates `/etc/apt/sources.list` file
 - Support for 20+ architectures (amd64, arm64, i386, riscv64, etc.)
 - Configurable options: source repos, contrib, non-free, non-free-firmware, security, HTTPS, signed-by
 - Choice of output format: classic one-line (`.list`) or modern deb822 (`.sources`)
+- Optional Tor output using Debian's official onion services, with setup instructions included
 - Generates ready-to-copy CLI commands
 - CSRF-protected web form
 - REST API for programmatic access
@@ -46,6 +47,9 @@ curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&src=1&https=
 
 # deb822 (.sources) format
 curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&format=deb822"
+
+# Tor onion mirrors
+curl -s "http://your-server/api.php?release=bookworm&tor=1"
 ```
 
 **API Parameters:**
@@ -57,12 +61,17 @@ curl -s "http://your-server/api.php?mirror=Germany&release=bookworm&format=deb82
 | `arch`              | Architecture (e.g. `amd64`, `arm64`)                  |
 | `src`               | Include deb-src lines (`yes`/`no`)                    |
 | `https`             | Use HTTPS (`yes`/`no`)                                |
+| `tor`               | Use official Debian onion mirrors (`yes`/`no`)        |
 | `contrib`           | Include contrib (`yes`/`no`)                          |
 | `non-free`          | Include non-free (`yes`/`no`)                         |
 | `non-free-firmware` | Include non-free-firmware (`yes`/`no`)                |
 | `security`          | Include security repos (`yes`/`no`)                   |
 | `signed-by`         | GPG key path for signed-by                            |
 | `format`            | Output format: `oneline` (default) or `deb822`         |
+
+Tor output requires the `tor` and `apt-transport-tor` packages; the generated
+list includes the install command. Tor mode uses Debian's official onion
+services and overrides the selected `mirror` and `https` options.
 
 ## Project Structure
 

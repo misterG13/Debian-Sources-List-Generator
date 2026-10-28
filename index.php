@@ -28,6 +28,7 @@ $nonFree         = true;
 $nonFreeFirmware = true;
 $security        = true;
 $useHttps        = false;
+$tor             = false;
 $format          = SourceFormat::OneLine;
 $signedBy        = '';
 $output          = '';
@@ -51,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $nonFreeFirmware = isset($_POST['non-free-firmware']);
   $security        = isset($_POST['security']);
   $useHttps        = isset($_POST['https']);
+  $tor             = ($_POST['tor'] ?? '') === '1';
   $format          = SourceFormat::tryFrom((string) ($_POST['format'] ?? '')) ?? SourceFormat::OneLine;
   $signedBy        = (string) ($_POST['signed-by'] ?? '');
 
@@ -92,9 +94,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       security: $security,
       signedBy: $signedBy !== '' ? $signedBy : null,
       format: $format,
+      tor: $tor,
     );
 
-    if ($useHttps) {
+    if ($useHttps && !$tor) {
       $output = str_replace('http://', 'https://', $output);
     }
 
@@ -127,7 +130,7 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
       <form method="POST" action="">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>" />
 
-        <!-- ── Country Select (always visible) ─────────────────────── -->
+        <!-- ── Country Select ──────────────────────────────────────── -->
         <div class="elemnts--inline">
           <p>
             <label>Country<br />
@@ -206,8 +209,10 @@ $selectedCountryMirrors = $selectedCountryMirrors ?? getMirrorsForCountry($count
 
           <div class="actions">
             <button type="submit" name="action" value="generate" class="button" tabindex="14">Generate</button>
-            <button type="button" class="button button--reset" onclick="window.location.href='?'" tabindex="15">Reset</button>
+            <button type="submit" name="tor" value="1" class="button" tabindex="15">Generate via Tor</button>
+            <a href="?" class="button button--reset" tabindex="16">Reset</a>
           </div>
+          <p class="field-help">Generate via Tor uses Debian's official onion services and ignores the selected mirror and HTTPS setting. Requires <code>tor</code> and <code>apt-transport-tor</code>.</p>
 
           <div class="section-group">
             <p>
