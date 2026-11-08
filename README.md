@@ -86,7 +86,7 @@ services and overrides the selected `mirror` and `https` options.
 
 ## Screenshot
 
-![Debian Sources Generator Interface](screenshot_2026-07-13%2017-59-39.png)
+![Debian Sources Generator Interface](assets/screenshot.png)
 
 _The web interface showing all generation options configured_
 

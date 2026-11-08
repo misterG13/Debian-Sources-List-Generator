@@ -1,0 +1,6 @@
+# Update the Sitemap URL to your deployment domain before publishing.
+User-agent: *
+Allow: /
+Disallow: /lib/
+
+Sitemap: https://example.com/sitemap.xml
