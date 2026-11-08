@@ -91,8 +91,6 @@ services and overrides the selected `mirror` and `https` options.
 ├── assets/
 │   ├── screenshot.png   # UI screenshot
 │   └── og-image.png     # Open Graph image for social cards
-├── robots.txt           # Crawler rules (update domain for Sitemap URL)
-├── sitemap.xml          # Sitemap (update placeholder domain)
 └── lib/
     ├── data.php         # Country, Mirror, Release data models
     └── generator.php    # SourcesListGenerator class
