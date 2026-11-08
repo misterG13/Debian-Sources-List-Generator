@@ -2,6 +2,15 @@
 
 A self-contained PHP web application that generates `/etc/apt/sources.list` files for official Debian repositories. Includes both a web UI and a REST API.
 
+## Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [Screenshot](#screenshot)
+- [License](#license)
+
 ## Features
 
 - Select from 65+ countries with real-world Debian mirrors
@@ -79,6 +88,11 @@ services and overrides the selected `mirror` and `https` options.
 ├── index.php            # Web UI
 ├── api.php              # REST API
 ├── styles.css           # Styles
+├── assets/
+│   ├── screenshot.png   # UI screenshot
+│   └── og-image.png     # Open Graph image for social cards
+├── robots.txt           # Crawler rules (update domain for Sitemap URL)
+├── sitemap.xml          # Sitemap (update placeholder domain)
 └── lib/
     ├── data.php         # Country, Mirror, Release data models
     └── generator.php    # SourcesListGenerator class
