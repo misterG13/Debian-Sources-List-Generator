@@ -34,6 +34,9 @@ A self-contained PHP web application that generates `/etc/apt/sources.list` file
 
 Point a PHP-capable web server at the project directory and open `index.php` in your browser.
 
+After generating, a permalink URL is shown that prefills the form when visited (GET requests
+never auto-generate).
+
 ### API
 
 Send a GET or POST request to `api.php`:

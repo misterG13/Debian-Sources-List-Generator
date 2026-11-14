@@ -15,10 +15,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET'
   if (($_SERVER['QUERY_STRING'] ?? '') !== '') {
     $location .= '?' . $_SERVER['QUERY_STRING'];
   }
+  $location = str_replace([chr(13), chr(10)], '', $location);
   http_response_code(301);
   header('Location: ' . $location);
   exit;
 }
+
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: strict-origin-when-cross-origin');
 
 session_start();
 
@@ -47,54 +52,92 @@ $format          = SourceFormat::OneLine;
 $signedBy        = '';
 $output          = '';
 $hasOutput       = false;
+$permalink       = '';
 
-// --- Process POST ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  if (!hash_equals($csrfToken, $_POST['csrf_token'] ?? '')) {
-    http_response_code(403);
-    exit('Invalid CSRF token.');
-  }
+// --- Process input (POST submits + generates; GET only prefills) ---
+$isPost = $_SERVER['REQUEST_METHOD'] === 'POST';
 
-  $action      = ($_POST['action'] ?? 'generate') === 'update' ? 'update' : 'generate';
-  $countryCode = (string) ($_POST['country'] ?? '');
+if ($isPost && !hash_equals($csrfToken, $_POST['csrf_token'] ?? '')) {
+  http_response_code(403);
+  exit('Invalid CSRF token.');
+}
 
-  $mirrorUrl       = (string) ($_POST['mirror'] ?? $mirrorUrl);
-  $arch            = (string) ($_POST['arch'] ?? $arch);
-  $src             = isset($_POST['src']);
-  $contrib         = isset($_POST['contrib']);
-  $nonFree         = isset($_POST['non-free']);
-  $nonFreeFirmware = isset($_POST['non-free-firmware']);
-  $security        = isset($_POST['security']);
-  $useHttps        = isset($_POST['https']);
-  $tor             = ($_POST['tor'] ?? '') === '1';
-  $format          = SourceFormat::tryFrom((string) ($_POST['format'] ?? '')) ?? SourceFormat::OneLine;
-  $signedBy        = (string) ($_POST['signed-by'] ?? '');
+$source = $isPost ? $_POST : $_GET;
 
-  $releaseRaw = $_POST['releases'] ?? $release->value;
-  $release    = Release::tryFrom($releaseRaw) ?? Release::Stable;
+$countryCode = (string) ($source['country'] ?? '');
 
-  // Validate mirror URL
-  if (findMirrorByUrl($mirrorUrl) === null) {
+$mirrorUrl = (string) ($source['mirror'] ?? $mirrorUrl);
+if (strlen($mirrorUrl) > 200) {
+  $mirrorUrl = getCdnMirror()->url();
+}
+if (findMirrorByUrl($mirrorUrl) === null) {
+  if (str_starts_with($mirrorUrl, 'http')) {
+    if (!filter_var($mirrorUrl, FILTER_VALIDATE_URL)) {
+      $mirrorUrl = getCdnMirror()->url();
+    }
+  } else {
     $mirrorUrl = getCdnMirror()->url();
   }
+}
 
-  // If no country selected, try to infer from mirror URL
-  if ($countryCode === '' && $mirrorUrl !== getCdnMirror()->url()) {
-    $countryCode = findCountryByMirror($mirrorUrl, $countries) ?? '';
+$arch = (string) ($source['arch'] ?? $arch);
+if ($arch !== '' && !in_array($arch, ARCHITECTURES, true)) {
+  $arch = '';
+}
+
+$signedByRaw = (string) ($source['signed-by'] ?? '');
+if (strlen($signedByRaw) > 200) {
+  $signedByRaw = '';
+}
+$signedBy = $signedByRaw;
+
+$src             = ($source['src'] ?? '0') === '1';
+$contrib         = ($source['contrib'] ?? '1') !== '0';
+$nonFree         = ($source['non-free'] ?? '1') !== '0';
+$nonFreeFirmware = ($source['non-free-firmware'] ?? '1') !== '0';
+$security        = ($source['security'] ?? '1') !== '0';
+$useHttps        = ($source['https'] ?? '0') === '1';
+$tor             = ($source['tor'] ?? '0') === '1';
+$format          = SourceFormat::tryFrom((string) ($source['format'] ?? '')) ?? SourceFormat::OneLine;
+
+$releaseRaw = (string) ($source['release'] ?? $release->value);
+$release    = Release::tryFrom($releaseRaw) ?? Release::Stable;
+
+// Validate country code
+$validCountryCodes = array_map(static fn (Country $c): string => $c->code, $countries);
+if (!in_array($countryCode, $validCountryCodes, true)) {
+  $countryCode = '';
+}
+
+// If no country selected, try to infer from mirror URL
+if ($countryCode === '' && $mirrorUrl !== getCdnMirror()->url()) {
+  $countryCode = findCountryByMirror($mirrorUrl, $countries) ?? '';
+}
+
+$selectedCountryMirrors = getMirrorsForCountry($countryCode, $countries);
+
+// A specific country was chosen: its mirror list must contain the posted mirror,
+// otherwise fall back to the country's first mirror so one Generate click is enough.
+if ($countryCode !== '' && $selectedCountryMirrors !== []) {
+  $mirrorUrls = array_map(static fn (Mirror $m): string => $m->url(), $selectedCountryMirrors);
+  if (!in_array($mirrorUrl, $mirrorUrls, true)) {
+    $mirrorUrl = $selectedCountryMirrors[0]->url();
   }
+}
 
-  $selectedCountryMirrors = getMirrorsForCountry($countryCode, $countries);
+// --- Base URL parts (shared by permalink and canonical/OG tags) ---
+$scheme     = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host       = preg_replace('/[^A-Za-z0-9.:\[\]-]/', '', (string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+if ($host === '') {
+  $host = 'localhost';
+}
+$scriptPath = parse_url($_SERVER['SCRIPT_NAME'] ?? '/index.php', PHP_URL_PATH) ?: '/index.php';
+$basePath   = rtrim(dirname($scriptPath), '/');
 
-  // A specific country was chosen: its mirror list must contain the posted mirror,
-  // otherwise fall back to the country's first mirror so one Generate click is enough.
-  if ($countryCode !== '' && $selectedCountryMirrors !== []) {
-    $mirrorUrls = array_map(static fn (Mirror $m): string => $m->url(), $selectedCountryMirrors);
-    if (!in_array($mirrorUrl, $mirrorUrls, true)) {
-      $mirrorUrl = $selectedCountryMirrors[0]->url();
-    }
-  }
+// Generation only happens on POST submission.
+if ($isPost) {
+  $action = ($source['action'] ?? 'generate') === 'update' ? 'update' : 'generate';
 
-  // 'update' only refreshes the country/mirror dropdowns; 'generate' also builds the sources list.
   if ($action === 'generate') {
     $generator = new SourcesListGenerator();
     $output    = $generator->generate(
@@ -116,6 +159,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $hasOutput = true;
+
+    // Build a bookmarkable permalink (GET) from the normalized inputs.
+    $permalinkParams = [
+      'country'           => $countryCode,
+      'mirror'            => $mirrorUrl,
+      'release'           => $release->value,
+      'arch'              => $arch,
+      'src'               => $src ? '1' : '0',
+      'contrib'           => $contrib ? '1' : '0',
+      'non-free'          => $nonFree ? '1' : '0',
+      'non-free-firmware' => $nonFreeFirmware ? '1' : '0',
+      'security'          => $security ? '1' : '0',
+      'https'             => $useHttps ? '1' : '0',
+      'tor'               => $tor ? '1' : '0',
+      'format'            => $format->value,
+      'signed-by'         => $signedBy,
+    ];
+    if ($countryCode === '') {
+      unset($permalinkParams['country']);
+    }
+    if ($arch === '') {
+      unset($permalinkParams['arch']);
+    }
+    if ($signedBy === '') {
+      unset($permalinkParams['signed-by']);
+    }
+    if ($mirrorUrl === getCdnMirror()->url()) {
+      unset($permalinkParams['mirror']);
+    }
+    $permalink = $scheme . '://' . $host . $basePath . '/?' . http_build_query($permalinkParams, '', '&', PHP_QUERY_RFC3986);
   }
 }
 
@@ -143,10 +216,6 @@ $faq = [
 ];
 
 // --- Canonical URL for SEO ---
-$scheme     = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$host       = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$scriptPath = parse_url($_SERVER['SCRIPT_NAME'] ?? '/index.php', PHP_URL_PATH) ?: '/index.php';
-$basePath   = rtrim(dirname($scriptPath), '/');
 // Prefer the directory URL (e.g. "/") over "/index.php" for canonical and OG URLs.
 $canonicalPath = str_ends_with($scriptPath, '/index.php') ? $basePath . '/' : $scriptPath;
 $canonicalUrl  = $scheme . '://' . $host . $canonicalPath;
@@ -283,7 +352,7 @@ $ogImageSize   = @getimagesize(__DIR__ . '/assets/og-image.png');
           <div class="elemnts--inline">
             <p>
               <label>Releases<br />
-                <select name="releases" tabindex="4">
+                <select name="release" tabindex="4">
                   <?php foreach (Release::cases() as $r) : ?>
                     <option value="<?= $r->value ?>" <?= $release === $r ? 'selected' : '' ?>><?= $r->label() ?></option>
                   <?php endforeach; ?>
@@ -311,12 +380,12 @@ $ogImageSize   = @getimagesize(__DIR__ . '/assets/og-image.png');
 
           <div class="section-group">
             <div class="checkbox-grid">
-              <label><input name="src" type="checkbox" <?= $src ? 'checked' : '' ?> tabindex="7" /> Include sources</label>
-              <label><input name="contrib" type="checkbox" <?= $contrib ? 'checked' : '' ?> tabindex="8" /> Contrib</label>
-              <label><input name="non-free" type="checkbox" <?= $nonFree ? 'checked' : '' ?> tabindex="9" /> Non-Free</label>
-              <label<?= $release->hasNonFreeFirmware() ? '' : ' class="hidden"' ?>><input name="non-free-firmware" type="checkbox" <?= $nonFreeFirmware ? 'checked' : '' ?> tabindex="10" /> Non-Free Firmware</label>
-              <label><input name="security" type="checkbox" <?= $security ? 'checked' : '' ?> tabindex="11" /> Security</label>
-              <label><input name="https" type="checkbox" <?= $useHttps ? 'checked' : '' ?> tabindex="12" /> HTTPS</label>
+<label><input type="hidden" name="src" value="0" /><input name="src" type="checkbox" value="1" <?= $src ? 'checked' : '' ?> tabindex="7" /> Include sources</label>
+<label><input type="hidden" name="contrib" value="0" /><input name="contrib" type="checkbox" value="1" <?= $contrib ? 'checked' : '' ?> tabindex="8" /> Contrib</label>
+<label><input type="hidden" name="non-free" value="0" /><input name="non-free" type="checkbox" value="1" <?= $nonFree ? 'checked' : '' ?> tabindex="9" /> Non-Free</label>
+<label<?= $release->hasNonFreeFirmware() ? '' : ' class="hidden"' ?>><input type="hidden" name="non-free-firmware" value="0" /><input name="non-free-firmware" type="checkbox" value="1" <?= $nonFreeFirmware ? 'checked' : '' ?> tabindex="10" /> Non-Free Firmware</label>
+<label><input type="hidden" name="security" value="0" /><input name="security" type="checkbox" value="1" <?= $security ? 'checked' : '' ?> tabindex="11" /> Security</label>
+<label><input type="hidden" name="https" value="0" /><input name="https" type="checkbox" value="1" <?= $useHttps ? 'checked' : '' ?> tabindex="12" /> HTTPS</label>
             </div>
           </div>
 
@@ -343,6 +412,8 @@ $ogImageSize   = @getimagesize(__DIR__ . '/assets/og-image.png');
               <pre class="code-block" role="region" aria-label="CLI Command output"><code><?= htmlspecialchars($format === SourceFormat::Deb822
                 ? "sudo tee /etc/apt/sources.list.d/debian.sources <<EOF\n# Debian {$release->label()} debian.sources\n" . $output . "\nEOF\n\nsudo apt update"
                 : "sudo tee /etc/apt/sources.list.d/debian-{$release->value}-sources.list <<EOF\n# Debian {$release->label()} sources.list\n" . $output . "\nEOF\n\nsudo apt update") ?></code></pre>
+              <p class="output-heading">Permalink (prefills the form on visit)</p>
+              <pre class="code-block" role="region" aria-label="Permalink"><code><?= htmlspecialchars($permalink) ?></code></pre>
             <?php endif; ?>
           </div>
         </div>
