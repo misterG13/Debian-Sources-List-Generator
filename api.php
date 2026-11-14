@@ -112,6 +112,9 @@ $arch          = (string) param('arch', $arch);
 if (strlen($arch) > 20) {
   sendError("Arch value too long (max 20 characters)");
 }
+if (!in_array($arch, ARCHITECTURES, true)) {
+  sendError("Invalid arch: {$arch}");
+}
 $includeSources = param('src', '0') === '1';
 $contrib       = param('contrib', '1') !== '0';
 $nonFree       = param('non-free', '1') !== '0';
@@ -177,7 +180,7 @@ function resolveMirror(string $input): ?string
   $lower = strtolower($input);
 
   foreach ($countries as $country) {
-    if (strtolower($country->name) === $lower) {
+    if (strtolower($country->name) === $lower || strtolower($country->code) === $lower) {
       $firstMirror = $country->mirrors[0] ?? null;
       if ($firstMirror !== null) {
         return $firstMirror->url();

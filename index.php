@@ -103,6 +103,10 @@ $format          = SourceFormat::tryFrom((string) ($source['format'] ?? '')) ?? 
 $releaseRaw = (string) ($source['release'] ?? $release->value);
 $release    = Release::tryFrom($releaseRaw) ?? Release::Stable;
 
+if (!$release->hasNonFreeFirmware()) {
+  $nonFreeFirmware = false;
+}
+
 // Validate country code
 $validCountryCodes = array_map(static fn (Country $c): string => $c->code, $countries);
 if (!in_array($countryCode, $validCountryCodes, true)) {

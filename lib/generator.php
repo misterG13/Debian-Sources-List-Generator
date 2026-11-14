@@ -28,6 +28,10 @@ final readonly class SourcesListGenerator
     SourceFormat $format = SourceFormat::OneLine,
     bool $tor = false,
   ): string {
+    if (!$release->hasNonFreeFirmware()) {
+      $nonFreeFirmware = false;
+    }
+
     $components  = $this->buildComponents($contrib, $nonFree, $nonFreeFirmware);
     $archiveUrl  = $tor ? self::TOR_ARCHIVE_URL : $mirror;
     $securityUrl = $tor ? self::TOR_SECURITY_URL : self::SECURITY_URL;

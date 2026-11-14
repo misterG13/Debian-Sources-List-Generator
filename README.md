@@ -25,8 +25,9 @@ A self-contained PHP web application that generates `/etc/apt/sources.list` file
 
 ## Requirements
 
-- PHP 8.1+
+- PHP 8.2+
 - No external dependencies
+- Code style targets PSR-12
 
 ## Usage
 
@@ -42,7 +43,7 @@ never auto-generate).
 Send a GET or POST request to `api.php`:
 
 ```
-GET api.php?mirror=Canada&release=bookworm&arch=amd64&https=yes
+GET api.php?mirror=Canada&release=bookworm&arch=amd64&https=1
 ```
 
 CURL request via the linux CLI to `api.php`:
@@ -66,20 +67,26 @@ curl -s "http://your-server/api.php?release=bookworm&tor=1"
 
 **API Parameters:**
 
-| Parameter           | Description                                           |
-| ------------------- | ----------------------------------------------------- |
-| `mirror`            | Country name or full mirror URL                       |
-| `release`           | Debian release (e.g. `bookworm`, `trixie`, `testing`) |
-| `arch`              | Architecture (e.g. `amd64`, `arm64`)                  |
-| `src`               | Include deb-src lines (`yes`/`no`)                    |
-| `https`             | Use HTTPS (`yes`/`no`)                                |
-| `tor`               | Use official Debian onion mirrors (`yes`/`no`)        |
-| `contrib`           | Include contrib (`yes`/`no`)                          |
-| `non-free`          | Include non-free (`yes`/`no`)                         |
-| `non-free-firmware` | Include non-free-firmware (`yes`/`no`)                |
-| `security`          | Include security repos (`yes`/`no`)                   |
-| `signed-by`         | GPG key path for signed-by                            |
-| `format`            | Output format: `oneline` (default) or `deb822`         |
+| Parameter           | Description                                                        |
+| ------------------- | ------------------------------------------------------------------ |
+| `mirror`            | Full country name (case-insensitive), country code, or mirror URL  |
+| `release`           | Debian release (e.g. `bookworm`, `trixie`, `testing`)              |
+| `arch`              | Supported architecture (e.g. `amd64`, `arm64`); unknown is 400     |
+| `src`               | Set to `1` to include deb-src lines (default off)                  |
+| `https`             | Set to `1` to use HTTPS (default off)                              |
+| `tor`               | Set to `1` for official Debian onion mirrors (default off)         |
+| `contrib`           | Set to `0` to exclude contrib (default on)                         |
+| `non-free`          | Set to `0` to exclude non-free (default on)                        |
+| `non-free-firmware` | Set to `0` to exclude non-free-firmware (default on)               |
+| `security`          | Set to `0` to exclude security repos (default on)                  |
+| `signed-by`         | GPG key path for signed-by                                         |
+| `format`            | Output format: `oneline` (default) or `deb822`                     |
+
+Boolean flags are compared as strings: opt-in flags enable only when set to `1`,
+while opt-out flags disable only when set to `0`; any other value keeps the default.
+
+`non-free-firmware` is only generated for releases that support it (bookworm and
+newer, plus `stable` and `testing`); older releases silently omit it.
 
 Tor output requires the `tor` and `apt-transport-tor` packages; the generated
 list includes the install command. Tor mode uses Debian's official onion
